@@ -30,6 +30,7 @@ revenue_df = get_data("https://data.cityofnewyork.us/api/views/qbvv-9nzz/rows.cs
 # tabs used to display two different options of how one might format a Streamlit app.
 dashboard_view, scroll_view = st.tabs(["Dashboard View", "Scroll View"])
 
+# --------------------- Traditional Style Dashboard ---------------------
 with dashboard_view:
 
     # 3 dropdown selectors to select fields that will be used to filter the data.
@@ -89,11 +90,14 @@ with dashboard_view:
         st.write("Below is the dataset used in the chart above.")
         st.dataframe(chart_data, use_container_width=True)
 
+
+# --------------------- Scroll Style Dashboard ---------------------
 with scroll_view:
     st.subheader("Revenue categories comparison for fiscal year")
     
     categories_filter, categories_hist = st.columns([1,2])
 
+    # Filters section of the scrolling dashboard set nicely to the side of the chart
     with categories_filter:
         fiscal_year_list = revenue_df['FISCAL YEAR'].unique()
         latest = len(fiscal_year_list)-1
@@ -103,14 +107,27 @@ with scroll_view:
         categories = st.multiselect("Revenue Categories", categories_list, categories_list)
 
     with categories_hist:
-        fiscal_chart_data = revenue_df[(revenue_df['FISCAL YEAR']==fiscal_year) & (revenue_df['REVENUE CATEGORY'].isin(categories))]
-        # fiscal_chart_data.columns = fiscal_chart_data.columns.astype(str) 
+        fiscal_chart_data = revenue_df[(revenue_df['FISCAL YEAR']==fiscal_year) & (revenue_df['REVENUE CATEGORY'].isin(categories))] 
         plost.bar_chart(
             data=fiscal_chart_data,
             bar='REVENUE CATEGORY',
             value='REVENUE AMOUNT',
-            direction='horizontal')
-        
+            direction='horizontal'
+        )
+
+    # Horizontal divider
+    st.markdown("---")
+
+    st.subheader("Total yearly revenue over time")    
+    revenue_chart_data = revenue_df[revenue_df['REVENUE CATEGORY']=='TOTAL CITYWIDE REVENUES']
+    revenue_chart_data['FISCAL YEAR'] = pd.to_datetime(revenue_chart_data['FISCAL YEAR'], format='%Y')
+    plost.line_chart(
+        data=revenue_chart_data,
+        x='FISCAL YEAR',
+        y='REVENUE AMOUNT'
+    )
+
+    # Code used to export a set of data to a csv. Includes an expander to preview the data before exporting    
     st.subheader("Export Data")
     with st.expander("Data to be exported"):
         st.dataframe(revenue_df)
