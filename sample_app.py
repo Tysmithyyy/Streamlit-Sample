@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import calendar
+import plost
 
 st.title("Streamlit Sample")
 st.subheader("A simple Streamlit app by :blue[Tyler Smith]")
@@ -12,11 +13,19 @@ def get_data(url):
     df = pd.read_csv(url)
     return df
 
+# converts dataframe to csv for exporting
+@st.cache_data
+def convert_df(df):
+    # IMPORTANT: Cache the conversion to prevent computation on every rerun
+    return df.to_csv().encode('utf-8')
+
 def weather_filter(state, city, month, colname, weather_df):
     return weather_df[colname].where((weather_df['Station.State']==state) & (weather_df['Station.City']==city) & (weather_df['Date.Month']==month)).dropna().tolist()
+
 # calls to get_data function to get data sets to be used in the dashboards
 weather_df = get_data("https://corgis-edu.github.io/corgis/datasets/csv/weather/weather.csv")
 weather_df = weather_df[(weather_df['Date.Year']==2016)]
+revenue_df = get_data("https://data.cityofnewyork.us/api/views/qbvv-9nzz/rows.csv?accessType=DOWNLOAD")
 
 # tabs used to display two different options of how one might format a Streamlit app.
 dashboard_view, scroll_view = st.tabs(["Dashboard View", "Scroll View"])
@@ -81,6 +90,37 @@ with dashboard_view:
         st.dataframe(chart_data, use_container_width=True)
 
 with scroll_view:
-    hello = 0
+    st.subheader("Revenue categories comparison for fiscal year")
+    
+    categories_filter, categories_hist = st.columns([1,2])
 
+    with categories_filter:
+        fiscal_year_list = revenue_df['FISCAL YEAR'].unique()
+        latest = len(fiscal_year_list)-1
+        fiscal_year = st.selectbox("Fiscal Year", fiscal_year_list, latest)
+        categories_list = revenue_df['REVENUE CATEGORY'].where(revenue_df['FISCAL YEAR']==fiscal_year).dropna().unique()
+        categories_list = categories_list[categories_list != 'TOTAL CITYWIDE REVENUES']
+        categories = st.multiselect("Revenue Categories", categories_list, categories_list)
+
+    with categories_hist:
+        fiscal_chart_data = revenue_df[(revenue_df['FISCAL YEAR']==fiscal_year) & (revenue_df['REVENUE CATEGORY'].isin(categories))]
+        # fiscal_chart_data.columns = fiscal_chart_data.columns.astype(str) 
+        plost.bar_chart(
+            data=fiscal_chart_data,
+            bar='REVENUE CATEGORY',
+            value='REVENUE AMOUNT',
+            direction='horizontal')
+        
+    st.subheader("Export Data")
+    with st.expander("Data to be exported"):
+        st.dataframe(revenue_df)
+
+    csv = convert_df(revenue_df)
+
+    st.download_button(
+        label="Download data as CSV",
+        data=csv,
+        file_name='revenue.csv',
+        mime='text/csv',)
+    
 # dataset used in this app located at https://corgis-edu.github.io/corgis/csv/weather/
